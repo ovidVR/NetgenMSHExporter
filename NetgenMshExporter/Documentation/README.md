@@ -44,38 +44,6 @@ These inputs must fail because they do not define a closed volume:
 - Any mesh with degenerate triangles.
 - Any self-intersecting surface that Netgen detects during surface or volume meshing.
 
-## Output Requirement
-
-The output `.msh` file must contain tetrahedral volume elements in Gmsh 2.2 ASCII text format. It is written specifically for `TetrahedralMeshImporter`, so `$Elements` contains linear tetrahedra only.
-
-After Netgen reports meshing success, the bridge verifies that the in-memory mesh has linear tetrahedral volume elements and then parses the saved `.msh` file to confirm the importer-compatible Gmsh structure. If the file is surface-only or structurally incompatible, generation fails with:
-
-```text
-MSH generation failed: output does not contain tetrahedral volume elements.
-```
-
-## Runtime Files
-
-For normal Unity usage, keep:
-
-```text
-Assets/NetgenMshExporter/
-  Editor/
-  Runtime/
-  Plugins/Windows/x86_64/
-  Documentation/
-```
-
-The original `Assets/netgen` source tree is only needed to rebuild native DLLs. The final Unity folder remains plug-and-play after the Netgen source folder is removed, as long as the built DLLs remain in `Plugins/Windows/x86_64`.
-
-## Platform
-
-Currently supported:
-
-```text
-Windows x86_64 Unity Editor
-```
-
 ## Known Limitations
 
 - The written file content is Gmsh 2.2 ASCII, not Netgen native VOL text.
