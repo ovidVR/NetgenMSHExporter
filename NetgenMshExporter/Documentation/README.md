@@ -12,11 +12,12 @@ Tools > Netgen > MSH Exporter
 
 ## Usage
 
-1. Assign a `Mesh`, `MeshFilter`, or `GameObject` with a `MeshFilter`.
+1. Assign a readable `Mesh` asset directly.
 2. Make sure the assigned mesh is a closed watertight manifold surface.
-3. Choose an output folder inside the Unity project's `Assets` folder.
-4. Enter a `.msh` file name.
-5. Click `Generate Tetrahedral MSH`.
+3. Adjust meshing parameters if needed.
+4. Choose an output folder inside the Unity project's `Assets` folder.
+5. Enter a `.msh` file name.
+6. Click `Generate Tetrahedral MSH`.
 
 The exporter reads:
 
@@ -26,6 +27,38 @@ int[] triangles = mesh.triangles;
 ```
 
 Those triangles are interpreted only as the boundary of the volume to tetrahedralize. Normals, UVs, tangents, colors, and bone data are not used for tetrahedral meshing.
+
+The editor tool intentionally accepts only `Mesh` references. It does not resolve
+`GameObject`, `MeshFilter`, `SkinnedMeshRenderer`, prefab, or scene selection input.
+
+## Meshing Parameters
+
+The C# API exposes an interop-safe wrapper for the scalar fields of
+`nglib::Ng_Meshing_Parameters`. The native `meshsize_filename` pointer is not
+exposed. Defaults preserve the previous exporter behavior where it differed from
+raw Netgen defaults.
+
+- `UseLocalMeshSize`: default `true`; enables Netgen local mesh size modifiers.
+- `MaximumMeshSize`: default `0`; `0` means automatic sizing from the input mesh bounds.
+- `MinimumMeshSize`: default `0`; global lower mesh size limit.
+- `Fineness`: default `0.4`; mesh density from `0` coarse to `1` fine.
+- `Grading`: default `0.3`; mesh size transition aggressiveness from `0` to `1`.
+- `ElementsPerEdge`: default `2`; target elements per geometry edge.
+- `ElementsPerCurve`: default `2`; target elements per curvature radius.
+- `CloseEdgeEnable`: default `false`; enables close-edge refinement.
+- `CloseEdgeFactor`: default `2`; refinement factor for close edges.
+- `MinimumEdgeLengthEnable`: default `false`; enables explicit edge subdivision minimum.
+- `MinimumEdgeLength`: default `1e-4`; minimum edge length when enabled.
+- `SecondOrder`: default `false`; must remain `false` because the importer expects linear tetrahedra.
+- `QuadDominated`: default `false`; must remain `false` for this tetrahedral exporter path.
+- `OptimizeSurfaceMesh`: default `true`; enables surface mesh optimization.
+- `OptimizeVolumeMesh`: default `true`; enables volume mesh optimization.
+- `OptimizeSteps2D`: default `3`; surface optimization step count.
+- `OptimizeSteps3D`: default `3`; volume optimization step count.
+- `InvertTetrahedra`: default `false`; passes Netgen's volume inversion flag.
+- `InvertTriangles`: default `false`; passes Netgen's surface triangle inversion flag.
+- `CheckOverlap`: default `true`; checks overlapping surfaces during surface meshing.
+- `CheckOverlappingBoundary`: default `true`; checks overlapping surface elements before volume meshing.
 
 ## Valid Input
 

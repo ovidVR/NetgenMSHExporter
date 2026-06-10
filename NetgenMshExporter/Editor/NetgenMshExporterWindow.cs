@@ -6,11 +6,13 @@ namespace NetgenMshExporter.Editor
 {
     public sealed class NetgenMshExporterWindow : EditorWindow
     {
-        private Object sourceObject;
+        private Mesh sourceMesh;
+        private NetgenMeshingParameters meshingParameters = NetgenMeshingParameters.CreateDefault();
         private string outputFolder = "Assets";
         private string fileName = "mesh.msh";
         private string statusMessage;
         private MessageType statusType = MessageType.Info;
+        private Vector2 scrollPosition;
 
         [MenuItem("Tools/Netgen/MSH Exporter")]
         public static void Open()
@@ -21,61 +23,95 @@ namespace NetgenMshExporter.Editor
 
         private void OnGUI()
         {
-            EditorGUILayout.Space(8);
-            EditorGUILayout.LabelField("Source", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "The assigned Unity mesh must be a closed watertight manifold surface. Its triangles are used as the boundary for Netgen tetrahedral volume meshing.",
-                MessageType.Info);
-
-            using (new EditorGUI.ChangeCheckScope())
+            if (meshingParameters == null)
             {
-                sourceObject = EditorGUILayout.ObjectField(
-                    "Mesh / MeshFilter / GameObject",
-                    sourceObject,
-                    typeof(Object),
-                    true);
+                meshingParameters = NetgenMeshingParameters.CreateDefault();
             }
 
-            var mesh = ResolveMesh(sourceObject);
-            using (new EditorGUI.DisabledScope(true))
+            scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
+            try
             {
-                EditorGUILayout.ObjectField("Resolved Mesh", mesh, typeof(Mesh), false);
-            }
+                EditorGUILayout.Space(8);
+                EditorGUILayout.LabelField("Source", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(
+                    "Assign a readable closed watertight Mesh. The exporter reads only mesh.vertices and mesh.triangles.",
+                    MessageType.Info);
 
-            EditorGUILayout.Space(8);
-            EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
+                sourceMesh = (Mesh)EditorGUILayout.ObjectField(
+                    "Mesh",
+                    sourceMesh,
+                    typeof(Mesh),
+                    false);
 
-            using (new EditorGUILayout.HorizontalScope())
-            {
-                outputFolder = EditorGUILayout.TextField("Folder", outputFolder);
-                if (GUILayout.Button("Select", GUILayout.Width(72)))
+                EditorGUILayout.Space(8);
+                DrawMeshingParameters();
+
+                EditorGUILayout.Space(8);
+                EditorGUILayout.LabelField("Output", EditorStyles.boldLabel);
+
+                using (new EditorGUILayout.HorizontalScope())
                 {
-                    SelectOutputFolder();
+                    outputFolder = EditorGUILayout.TextField("Folder", outputFolder);
+                    if (GUILayout.Button("Select", GUILayout.Width(72)))
+                    {
+                        SelectOutputFolder();
+                    }
+                }
+
+                fileName = EditorGUILayout.TextField("File Name", fileName);
+
+                var validation = ValidateUi(sourceMesh);
+                if (!string.IsNullOrEmpty(validation))
+                {
+                    EditorGUILayout.HelpBox(validation, MessageType.Warning);
+                }
+
+                if (!string.IsNullOrEmpty(statusMessage))
+                {
+                    EditorGUILayout.HelpBox(statusMessage, statusType);
+                }
+
+                GUILayout.FlexibleSpace();
+
+                using (new EditorGUI.DisabledScope(!string.IsNullOrEmpty(validation)))
+                {
+                    if (GUILayout.Button("Generate Tetrahedral MSH", GUILayout.Height(34)))
+                    {
+                        Generate(sourceMesh);
+                    }
                 }
             }
-
-            fileName = EditorGUILayout.TextField("File Name", fileName);
-
-            var validation = ValidateUi(mesh);
-            if (!string.IsNullOrEmpty(validation))
+            finally
             {
-                EditorGUILayout.HelpBox(validation, MessageType.Warning);
+                EditorGUILayout.EndScrollView();
             }
+        }
 
-            if (!string.IsNullOrEmpty(statusMessage))
-            {
-                EditorGUILayout.HelpBox(statusMessage, statusType);
-            }
+        private void DrawMeshingParameters()
+        {
+            EditorGUILayout.LabelField("Meshing Parameters", EditorStyles.boldLabel);
 
-            GUILayout.FlexibleSpace();
-
-            using (new EditorGUI.DisabledScope(!string.IsNullOrEmpty(validation)))
-            {
-                if (GUILayout.Button("Generate Tetrahedral MSH", GUILayout.Height(34)))
-                {
-                    Generate(mesh);
-                }
-            }
+            meshingParameters.UseLocalMeshSize = EditorGUILayout.Toggle("Use Local Mesh Size", meshingParameters.UseLocalMeshSize);
+            meshingParameters.MaximumMeshSize = EditorGUILayout.DoubleField("Maximum Mesh Size", meshingParameters.MaximumMeshSize);
+            meshingParameters.MinimumMeshSize = EditorGUILayout.DoubleField("Minimum Mesh Size", meshingParameters.MinimumMeshSize);
+            meshingParameters.Fineness = EditorGUILayout.Slider("Fineness", (float)meshingParameters.Fineness, 0f, 1f);
+            meshingParameters.Grading = EditorGUILayout.Slider("Grading", (float)meshingParameters.Grading, 0f, 1f);
+            meshingParameters.ElementsPerEdge = EditorGUILayout.DoubleField("Elements Per Edge", meshingParameters.ElementsPerEdge);
+            meshingParameters.ElementsPerCurve = EditorGUILayout.DoubleField("Elements Per Curve", meshingParameters.ElementsPerCurve);
+            meshingParameters.CloseEdgeEnable = EditorGUILayout.Toggle("Close Edge Refinement", meshingParameters.CloseEdgeEnable);
+            meshingParameters.CloseEdgeFactor = EditorGUILayout.DoubleField("Close Edge Factor", meshingParameters.CloseEdgeFactor);
+            meshingParameters.MinimumEdgeLengthEnable = EditorGUILayout.Toggle("Use Minimum Edge Length", meshingParameters.MinimumEdgeLengthEnable);
+            meshingParameters.MinimumEdgeLength = EditorGUILayout.DoubleField("Minimum Edge Length", meshingParameters.MinimumEdgeLength);
+            meshingParameters.SecondOrder = EditorGUILayout.Toggle("Second Order", meshingParameters.SecondOrder);
+            meshingParameters.QuadDominated = EditorGUILayout.Toggle("Quad Dominated", meshingParameters.QuadDominated);
+            meshingParameters.OptimizeSurfaceMesh = EditorGUILayout.Toggle("Optimize Surface Mesh", meshingParameters.OptimizeSurfaceMesh);
+            meshingParameters.OptimizeVolumeMesh = EditorGUILayout.Toggle("Optimize Volume Mesh", meshingParameters.OptimizeVolumeMesh);
+            meshingParameters.OptimizeSteps2D = EditorGUILayout.IntField("Optimize Steps 2D", meshingParameters.OptimizeSteps2D);
+            meshingParameters.OptimizeSteps3D = EditorGUILayout.IntField("Optimize Steps 3D", meshingParameters.OptimizeSteps3D);
+            meshingParameters.InvertTetrahedra = EditorGUILayout.Toggle("Invert Tetrahedra", meshingParameters.InvertTetrahedra);
+            meshingParameters.InvertTriangles = EditorGUILayout.Toggle("Invert Triangles", meshingParameters.InvertTriangles);
+            meshingParameters.CheckOverlap = EditorGUILayout.Toggle("Check Overlap", meshingParameters.CheckOverlap);
+            meshingParameters.CheckOverlappingBoundary = EditorGUILayout.Toggle("Check Overlapping Boundary", meshingParameters.CheckOverlappingBoundary);
         }
 
         private void SelectOutputFolder()
@@ -101,7 +137,11 @@ namespace NetgenMshExporter.Editor
         private void Generate(Mesh mesh)
         {
             var outputPath = Path.Combine(outputFolder, EnsureMshExtension(fileName));
-            if (!global::NetgenMshExporter.NetgenMshExporter.GenerateTetrahedralMshFromSurfaceMesh(mesh, outputPath, out var errorMessage))
+            if (!global::NetgenMshExporter.NetgenMshExporter.GenerateTetrahedralMshFromSurfaceMesh(
+                    mesh,
+                    outputPath,
+                    meshingParameters,
+                    out var errorMessage))
             {
                 statusType = MessageType.Error;
                 statusMessage = errorMessage;
@@ -114,28 +154,16 @@ namespace NetgenMshExporter.Editor
             Debug.Log($"Netgen tetrahedral MSH generation complete: {outputPath}");
         }
 
-        private static Mesh ResolveMesh(Object obj)
-        {
-            switch (obj)
-            {
-                case Mesh mesh:
-                    return mesh;
-                case MeshFilter meshFilter:
-                    return meshFilter.sharedMesh;
-                case GameObject gameObject:
-                    return gameObject.GetComponent<MeshFilter>() != null
-                        ? gameObject.GetComponent<MeshFilter>().sharedMesh
-                        : null;
-                default:
-                    return null;
-            }
-        }
-
         private string ValidateUi(Mesh mesh)
         {
             if (mesh == null)
             {
-                return "Assign a closed watertight Mesh, MeshFilter, or GameObject with a MeshFilter.";
+                return "Assign a closed watertight Mesh.";
+            }
+
+            if (!meshingParameters.Validate(out var parameterError))
+            {
+                return parameterError;
             }
 
             if (string.IsNullOrWhiteSpace(outputFolder))

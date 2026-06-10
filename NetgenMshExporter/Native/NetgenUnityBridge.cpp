@@ -134,6 +134,44 @@ namespace
         return std::isfinite(static_cast<double>(value));
     }
 
+    bool IsFinite(double value)
+    {
+        return std::isfinite(value);
+    }
+
+    bool IsBooleanFlag(int value)
+    {
+        return value == 0 || value == 1;
+    }
+
+    NetgenUnityMeshingParameters CreateDefaultUnityMeshingParameters()
+    {
+        return NetgenUnityMeshingParameters
+        {
+            1,      // useLocalMeshSize
+            0.0,    // maximumMeshSize: 0 means auto-size from input bounds.
+            0.0,    // minimumMeshSize
+            0.4,    // fineness, preserves the previous exporter default.
+            0.3,    // grading
+            2.0,    // elementsPerEdge
+            2.0,    // elementsPerCurve
+            0,      // closeEdgeEnable
+            2.0,    // closeEdgeFactor
+            0,      // minimumEdgeLengthEnable
+            1.0e-4, // minimumEdgeLength
+            0,      // secondOrder: importer supports linear tetrahedra only.
+            0,      // quadDominated
+            1,      // optimizeSurfaceMesh
+            1,      // optimizeVolumeMesh
+            3,      // optimizeSteps2D
+            3,      // optimizeSteps3D
+            0,      // invertTetrahedra
+            0,      // invertTriangles
+            1,      // checkOverlap
+            1       // checkOverlappingBoundary
+        };
+    }
+
     std::uint32_t FloatBits(float value)
     {
         if (value == 0.0f)
@@ -272,6 +310,146 @@ namespace
         }
 
         return {};
+    }
+
+    std::string ValidateMeshingParameters(const NetgenUnityMeshingParameters& parameters)
+    {
+        if (!IsBooleanFlag(parameters.useLocalMeshSize))
+        {
+            return "Use Local Mesh Size must be 0 or 1.";
+        }
+
+        if (!IsFinite(parameters.maximumMeshSize) || parameters.maximumMeshSize < 0.0)
+        {
+            return "Maximum Mesh Size must be finite and greater than or equal to 0. Use 0 for automatic sizing.";
+        }
+
+        if (!IsFinite(parameters.minimumMeshSize) || parameters.minimumMeshSize < 0.0)
+        {
+            return "Minimum Mesh Size must be finite and greater than or equal to 0.";
+        }
+
+        if (parameters.maximumMeshSize > 0.0 && parameters.minimumMeshSize > parameters.maximumMeshSize)
+        {
+            return "Minimum Mesh Size cannot be greater than Maximum Mesh Size.";
+        }
+
+        if (!IsFinite(parameters.fineness) || parameters.fineness < 0.0 || parameters.fineness > 1.0)
+        {
+            return "Fineness must be finite and in the range 0 to 1.";
+        }
+
+        if (!IsFinite(parameters.grading) || parameters.grading < 0.0 || parameters.grading > 1.0)
+        {
+            return "Grading must be finite and in the range 0 to 1.";
+        }
+
+        if (!IsFinite(parameters.elementsPerEdge) || parameters.elementsPerEdge <= 0.0)
+        {
+            return "Elements Per Edge must be finite and greater than 0.";
+        }
+
+        if (!IsFinite(parameters.elementsPerCurve) || parameters.elementsPerCurve <= 0.0)
+        {
+            return "Elements Per Curve must be finite and greater than 0.";
+        }
+
+        if (!IsBooleanFlag(parameters.closeEdgeEnable))
+        {
+            return "Close Edge Enable must be 0 or 1.";
+        }
+
+        if (!IsFinite(parameters.closeEdgeFactor) || parameters.closeEdgeFactor <= 0.0)
+        {
+            return "Close Edge Factor must be finite and greater than 0.";
+        }
+
+        if (!IsBooleanFlag(parameters.minimumEdgeLengthEnable))
+        {
+            return "Minimum Edge Length Enable must be 0 or 1.";
+        }
+
+        if (!IsFinite(parameters.minimumEdgeLength) || parameters.minimumEdgeLength <= 0.0)
+        {
+            return "Minimum Edge Length must be finite and greater than 0.";
+        }
+
+        if (!IsBooleanFlag(parameters.secondOrder))
+        {
+            return "Second Order must be 0 or 1.";
+        }
+
+        if (parameters.secondOrder != 0)
+        {
+            return "Second Order elements are not supported because the importer requires linear tetrahedra.";
+        }
+
+        if (!IsBooleanFlag(parameters.quadDominated))
+        {
+            return "Quad Dominated must be 0 or 1.";
+        }
+
+        if (parameters.quadDominated != 0)
+        {
+            return "Quad Dominated meshing is not supported because this exporter writes tetrahedral volume MSH files.";
+        }
+
+        if (!IsBooleanFlag(parameters.optimizeSurfaceMesh)
+            || !IsBooleanFlag(parameters.optimizeVolumeMesh)
+            || !IsBooleanFlag(parameters.invertTetrahedra)
+            || !IsBooleanFlag(parameters.invertTriangles)
+            || !IsBooleanFlag(parameters.checkOverlap)
+            || !IsBooleanFlag(parameters.checkOverlappingBoundary))
+        {
+            return "Meshing toggle values must be 0 or 1.";
+        }
+
+        if (parameters.optimizeSteps2D < 0 || parameters.optimizeSteps2D > 100)
+        {
+            return "Optimize Steps 2D must be between 0 and 100.";
+        }
+
+        if (parameters.optimizeSteps3D < 0 || parameters.optimizeSteps3D > 100)
+        {
+            return "Optimize Steps 3D must be between 0 and 100.";
+        }
+
+        return {};
+    }
+
+    nglib::Ng_Meshing_Parameters ToNgMeshingParameters(
+        const NetgenUnityMeshingParameters& source,
+        const float* vertices,
+        int vertexCount)
+    {
+        nglib::Ng_Meshing_Parameters target;
+
+        target.uselocalh = source.useLocalMeshSize;
+        target.maxh = source.maximumMeshSize > 0.0
+            ? source.maximumMeshSize
+            : std::max(ComputeBoundsDiagonal(vertices, vertexCount), 1.0e-6);
+        target.minh = source.minimumMeshSize;
+        target.fineness = source.fineness;
+        target.grading = source.grading;
+        target.elementsperedge = source.elementsPerEdge;
+        target.elementspercurve = source.elementsPerCurve;
+        target.closeedgeenable = source.closeEdgeEnable;
+        target.closeedgefact = source.closeEdgeFactor;
+        target.minedgelenenable = source.minimumEdgeLengthEnable;
+        target.minedgelen = source.minimumEdgeLength;
+        target.second_order = source.secondOrder;
+        target.quad_dominated = source.quadDominated;
+        target.meshsize_filename = nullptr;
+        target.optsurfmeshenable = source.optimizeSurfaceMesh;
+        target.optvolmeshenable = source.optimizeVolumeMesh;
+        target.optsteps_2d = source.optimizeSteps2D;
+        target.optsteps_3d = source.optimizeSteps3D;
+        target.invert_tets = source.invertTetrahedra;
+        target.invert_trigs = source.invertTriangles;
+        target.check_overlap = source.checkOverlap;
+        target.check_overlapping_boundary = source.checkOverlappingBoundary;
+
+        return target;
     }
 
     std::vector<int> BuildCanonicalVertexMap(const float* vertices, int vertexCount)
@@ -675,6 +853,7 @@ namespace
         const int* indices,
         int indexCount,
         const char* outputPath,
+        const NetgenUnityMeshingParameters& meshingParameters,
         char* errorBuffer,
         int errorBufferSize)
     {
@@ -684,6 +863,12 @@ namespace
         if (!validationError.empty())
         {
             return Fail(kInvalidArgument, errorBuffer, errorBufferSize, validationError);
+        }
+
+        const std::string parameterValidationError = ValidateMeshingParameters(meshingParameters);
+        if (!parameterValidationError.empty())
+        {
+            return Fail(kInvalidArgument, errorBuffer, errorBufferSize, parameterValidationError);
         }
 
         const std::string surfaceValidationError =
@@ -756,12 +941,8 @@ namespace
             nglib::Ng_STL_AddTriangle(geometry.get(), p0, p1, p2, nullptr);
         }
 
-        nglib::Ng_Meshing_Parameters parameters;
-        parameters.second_order = 0;
-        parameters.fineness = 0.4;
-        parameters.check_overlap = 1;
-        parameters.check_overlapping_boundary = 1;
-        parameters.maxh = std::max(ComputeBoundsDiagonal(vertices, vertexCount), 1.0e-6);
+        nglib::Ng_Meshing_Parameters parameters =
+            ToNgMeshingParameters(meshingParameters, vertices, vertexCount);
 
         nglib::Ng_Result result = nglib::Ng_STL_InitSTLGeometry(geometry.get());
         if (result != nglib::NG_OK)
@@ -848,12 +1029,51 @@ extern "C"
     {
         try
         {
+            const NetgenUnityMeshingParameters parameters = CreateDefaultUnityMeshingParameters();
             return GenerateTetrahedralMesh(
                 vertices,
                 vertexCount,
                 triangleIndices,
                 indexCount,
                 outputPath,
+                parameters,
+                errorBuffer,
+                errorBufferSize);
+        }
+        catch (const std::exception& exception)
+        {
+            return Fail(kNetgenError, errorBuffer, errorBufferSize, exception.what());
+        }
+        catch (...)
+        {
+            return Fail(kUnexpectedError, errorBuffer, errorBufferSize, "Unexpected native exception.");
+        }
+    }
+
+    NETGEN_UNITY_BRIDGE_API int GenerateTetrahedralMshFromUnitySurfaceMeshWithParameters(
+        const float* vertices,
+        int vertexCount,
+        const int* triangleIndices,
+        int indexCount,
+        const char* outputPath,
+        const NetgenUnityMeshingParameters* parameters,
+        char* errorBuffer,
+        int errorBufferSize)
+    {
+        try
+        {
+            if (parameters == nullptr)
+            {
+                return Fail(kInvalidArgument, errorBuffer, errorBufferSize, "Meshing parameters pointer is null.");
+            }
+
+            return GenerateTetrahedralMesh(
+                vertices,
+                vertexCount,
+                triangleIndices,
+                indexCount,
+                outputPath,
+                *parameters,
                 errorBuffer,
                 errorBufferSize);
         }
@@ -869,7 +1089,7 @@ extern "C"
 
     NETGEN_UNITY_BRIDGE_API int GetNetgenUnityBridgeVersion(char* buffer, int bufferSize)
     {
-        WriteMessage(buffer, bufferSize, "NetgenUnityBridge 2.1.0 importer-compatible Gmsh 2.2 tetrahedral");
+        WriteMessage(buffer, bufferSize, "NetgenUnityBridge 2.2.0 importer-compatible Gmsh 2.2 tetrahedral with meshing parameters");
         return kSuccess;
     }
 }

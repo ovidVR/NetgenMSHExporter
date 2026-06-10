@@ -12,12 +12,36 @@ namespace NetgenMshExporter
 
         public static bool GenerateTetrahedralMshFromSurfaceMesh(Mesh mesh, string outputPath, out string errorMessage)
         {
+            return GenerateTetrahedralMshFromSurfaceMesh(
+                mesh,
+                outputPath,
+                NetgenMeshingParameters.CreateDefault(),
+                out errorMessage);
+        }
+
+        public static bool GenerateTetrahedralMshFromSurfaceMesh(
+            Mesh mesh,
+            string outputPath,
+            NetgenMeshingParameters meshingParameters,
+            out string errorMessage)
+        {
             if (!ValidateReadableMeshReference(mesh, out errorMessage))
             {
                 return false;
             }
 
             if (!ValidateOutputPath(outputPath, out errorMessage))
+            {
+                return false;
+            }
+
+            if (meshingParameters == null)
+            {
+                errorMessage = "Meshing parameters are required.";
+                return false;
+            }
+
+            if (!meshingParameters.Validate(out errorMessage))
             {
                 return false;
             }
@@ -51,13 +75,15 @@ namespace NetgenMshExporter
                 vertices[baseIndex + 2] = vertex.z;
             }
 
+            var nativeParameters = meshingParameters.ToNative();
             var errorBuffer = new StringBuilder(ErrorBufferSize);
-            var result = NetgenNativeBindings.GenerateTetrahedralMshFromUnitySurfaceMesh(
+            var result = NetgenNativeBindings.GenerateTetrahedralMshFromUnitySurfaceMeshWithParameters(
                 vertices,
                 meshVertices.Length,
                 triangleIndices,
                 triangleIndices.Length,
                 Path.GetFullPath(outputPath),
+                ref nativeParameters,
                 errorBuffer,
                 errorBuffer.Capacity);
 
@@ -148,6 +174,16 @@ namespace NetgenMshExporter
                 }
             }
 
+            for (var i = 0; i < vertices.Length; i++)
+            {
+                var vertex = vertices[i];
+                if (!IsFinite(vertex.x) || !IsFinite(vertex.y) || !IsFinite(vertex.z))
+                {
+                    errorMessage = $"Vertex {i} contains a non-finite coordinate.";
+                    return false;
+                }
+            }
+
             for (var i = 0; i < triangleIndices.Length; i += 3)
             {
                 var i0 = triangleIndices[i];
@@ -170,6 +206,11 @@ namespace NetgenMshExporter
 
             errorMessage = string.Empty;
             return true;
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         private static bool ValidateOutputPath(string outputPath, out string errorMessage)

@@ -239,7 +239,7 @@ def build_plugin(
     output_plugin_dir.mkdir(parents=True, exist_ok=True)
 
     copy_package_files(output_dir)
-    copy_native_libraries(build_dir, package_plugin_dir, output_plugin_dir, target, configuration)
+    copy_native_libraries(build_dir, zlib_install, package_plugin_dir, output_plugin_dir, target, configuration)
     return package_plugin_dir
 
 
@@ -255,6 +255,7 @@ def copy_package_files(output_dir: Path) -> None:
 
 def copy_native_libraries(
     build_dir: Path,
+    zlib_install: Path,
     package_plugin_dir: Path,
     output_plugin_dir: Path,
     target: str,
@@ -265,19 +266,20 @@ def copy_native_libraries(
         patterns = ("*.dylib", "*.bundle")
         bridge_names = {"libNetgenUnityBridge.dylib", "NetgenUnityBridge.bundle"}
     else:
-        names = {"NetgenUnityBridge.dll", "nglib.dll", "ngcore.dll", "z.dll"}
+        names = {"NetgenUnityBridge.dll", "nglib.dll", "ngcore.dll", "z.dll", "libz.dll"}
         patterns = ("*.dll",)
         bridge_names = {"NetgenUnityBridge.dll"}
 
     copied_bridge = False
-    for pattern in patterns:
-        for library in build_dir.rglob(pattern):
-            if library.name not in names and configuration not in str(library.parent):
-                continue
-            for destination_dir in (package_plugin_dir, output_plugin_dir):
-                shutil.copy2(library, destination_dir / library.name)
-            if library.name in bridge_names:
-                copied_bridge = True
+    for search_root in (build_dir, zlib_install):
+        for pattern in patterns:
+            for library in search_root.rglob(pattern):
+                if library.name not in names and configuration not in str(library.parent):
+                    continue
+                for destination_dir in (package_plugin_dir, output_plugin_dir):
+                    shutil.copy2(library, destination_dir / library.name)
+                if library.name in bridge_names:
+                    copied_bridge = True
 
     if not copied_bridge:
         fail(f"NetgenUnityBridge library was not found under {build_dir}")
