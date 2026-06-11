@@ -58,7 +58,9 @@ namespace NetgenMshExporter.Editor
                         SelectOutputFolder();
                     }
                 }
-
+                
+                if (sourceMesh)
+                    fileName = sourceMesh.name + ".msh";
                 fileName = EditorGUILayout.TextField("File Name", fileName);
 
                 var validation = ValidateUi(sourceMesh);
