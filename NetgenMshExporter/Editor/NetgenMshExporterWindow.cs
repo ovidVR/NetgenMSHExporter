@@ -18,7 +18,8 @@ namespace NetgenMshExporter.Editor
         public static void Open()
         {
             var window = GetWindow<NetgenMshExporterWindow>("Tetrahedral MSH");
-            window.minSize = new Vector2(460, 300);
+            window.minSize = new Vector2(500, 560);
+            window.maxSize = new Vector2(500, 560);
         }
 
         private void OnGUI()
@@ -91,27 +92,60 @@ namespace NetgenMshExporter.Editor
         {
             EditorGUILayout.LabelField("Meshing Parameters", EditorStyles.boldLabel);
 
-            meshingParameters.UseLocalMeshSize = EditorGUILayout.Toggle("Use Local Mesh Size", meshingParameters.UseLocalMeshSize);
-            meshingParameters.MaximumMeshSize = EditorGUILayout.DoubleField("Maximum Mesh Size", meshingParameters.MaximumMeshSize);
-            meshingParameters.MinimumMeshSize = EditorGUILayout.DoubleField("Minimum Mesh Size", meshingParameters.MinimumMeshSize);
-            meshingParameters.Fineness = EditorGUILayout.Slider("Fineness", (float)meshingParameters.Fineness, 0f, 1f);
-            meshingParameters.Grading = EditorGUILayout.Slider("Grading", (float)meshingParameters.Grading, 0f, 1f);
-            meshingParameters.ElementsPerEdge = EditorGUILayout.DoubleField("Elements Per Edge", meshingParameters.ElementsPerEdge);
-            meshingParameters.ElementsPerCurve = EditorGUILayout.DoubleField("Elements Per Curve", meshingParameters.ElementsPerCurve);
-            meshingParameters.CloseEdgeEnable = EditorGUILayout.Toggle("Close Edge Refinement", meshingParameters.CloseEdgeEnable);
-            meshingParameters.CloseEdgeFactor = EditorGUILayout.DoubleField("Close Edge Factor", meshingParameters.CloseEdgeFactor);
-            meshingParameters.MinimumEdgeLengthEnable = EditorGUILayout.Toggle("Use Minimum Edge Length", meshingParameters.MinimumEdgeLengthEnable);
-            meshingParameters.MinimumEdgeLength = EditorGUILayout.DoubleField("Minimum Edge Length", meshingParameters.MinimumEdgeLength);
-            meshingParameters.SecondOrder = EditorGUILayout.Toggle("Second Order", meshingParameters.SecondOrder);
-            meshingParameters.QuadDominated = EditorGUILayout.Toggle("Quad Dominated", meshingParameters.QuadDominated);
-            meshingParameters.OptimizeSurfaceMesh = EditorGUILayout.Toggle("Optimize Surface Mesh", meshingParameters.OptimizeSurfaceMesh);
-            meshingParameters.OptimizeVolumeMesh = EditorGUILayout.Toggle("Optimize Volume Mesh", meshingParameters.OptimizeVolumeMesh);
-            meshingParameters.OptimizeSteps2D = EditorGUILayout.IntField("Optimize Steps 2D", meshingParameters.OptimizeSteps2D);
-            meshingParameters.OptimizeSteps3D = EditorGUILayout.IntField("Optimize Steps 3D", meshingParameters.OptimizeSteps3D);
-            meshingParameters.InvertTetrahedra = EditorGUILayout.Toggle("Invert Tetrahedra", meshingParameters.InvertTetrahedra);
-            meshingParameters.InvertTriangles = EditorGUILayout.Toggle("Invert Triangles", meshingParameters.InvertTriangles);
-            meshingParameters.CheckOverlap = EditorGUILayout.Toggle("Check Overlap", meshingParameters.CheckOverlap);
-            meshingParameters.CheckOverlappingBoundary = EditorGUILayout.Toggle("Check Overlapping Boundary", meshingParameters.CheckOverlappingBoundary);
+            var previousLabelWidth = EditorGUIUtility.labelWidth;
+            EditorGUIUtility.labelWidth = 170f;
+
+            try
+            {
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(240), GUILayout.Height(280)))
+                    {
+                        EditorGUILayout.LabelField("Sizing", EditorStyles.miniBoldLabel);
+                        meshingParameters.UseLocalMeshSize = EditorGUILayout.Toggle("Use Local Mesh Size", meshingParameters.UseLocalMeshSize);
+                        meshingParameters.MaximumMeshSize = EditorGUILayout.DoubleField("Maximum Mesh Size", meshingParameters.MaximumMeshSize);
+                        meshingParameters.MinimumMeshSize = EditorGUILayout.DoubleField("Minimum Mesh Size", meshingParameters.MinimumMeshSize);
+                        meshingParameters.Fineness = EditorGUILayout.DoubleField("Fineness", (float)meshingParameters.Fineness);
+                        meshingParameters.Grading = EditorGUILayout.DoubleField("Grading", (float)meshingParameters.Grading);
+
+                        EditorGUILayout.Space(6);
+                        EditorGUILayout.LabelField("Edge Refinement", EditorStyles.miniBoldLabel);
+                        meshingParameters.ElementsPerEdge = EditorGUILayout.DoubleField("Elements Per Edge", meshingParameters.ElementsPerEdge);
+                        meshingParameters.ElementsPerCurve = EditorGUILayout.DoubleField("Elements Per Curve", meshingParameters.ElementsPerCurve);
+                        meshingParameters.CloseEdgeEnable = EditorGUILayout.Toggle("Close Edge Refinement", meshingParameters.CloseEdgeEnable);
+                        meshingParameters.CloseEdgeFactor = EditorGUILayout.DoubleField("Close Edge Factor", meshingParameters.CloseEdgeFactor);
+                        meshingParameters.MinimumEdgeLengthEnable = EditorGUILayout.Toggle("Use Minimum Edge Length", meshingParameters.MinimumEdgeLengthEnable);
+                        meshingParameters.MinimumEdgeLength = EditorGUILayout.DoubleField("Minimum Edge Length", meshingParameters.MinimumEdgeLength);
+                    }
+
+                    GUILayout.Space(6);
+
+                    using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox, GUILayout.Width(240), GUILayout.Height(280)))
+                    {
+                        EditorGUILayout.LabelField("Element Options", EditorStyles.miniBoldLabel);
+                        meshingParameters.SecondOrder = EditorGUILayout.Toggle("Second Order", meshingParameters.SecondOrder);
+                        meshingParameters.QuadDominated = EditorGUILayout.Toggle("Quad Dominated", meshingParameters.QuadDominated);
+                        meshingParameters.InvertTetrahedra = EditorGUILayout.Toggle("Invert Tetrahedra", meshingParameters.InvertTetrahedra);
+                        meshingParameters.InvertTriangles = EditorGUILayout.Toggle("Invert Triangles", meshingParameters.InvertTriangles);
+
+                        EditorGUILayout.Space(6);
+                        EditorGUILayout.LabelField("Optimization", EditorStyles.miniBoldLabel);
+                        meshingParameters.OptimizeSurfaceMesh = EditorGUILayout.Toggle("Optimize Surface Mesh", meshingParameters.OptimizeSurfaceMesh);
+                        meshingParameters.OptimizeVolumeMesh = EditorGUILayout.Toggle("Optimize Volume Mesh", meshingParameters.OptimizeVolumeMesh);
+                        meshingParameters.OptimizeSteps2D = EditorGUILayout.IntField("Optimize Steps 2D", meshingParameters.OptimizeSteps2D);
+                        meshingParameters.OptimizeSteps3D = EditorGUILayout.IntField("Optimize Steps 3D", meshingParameters.OptimizeSteps3D);
+
+                        EditorGUILayout.Space(6);
+                        EditorGUILayout.LabelField("Validation", EditorStyles.miniBoldLabel);
+                        meshingParameters.CheckOverlap = EditorGUILayout.Toggle("Check Overlap", meshingParameters.CheckOverlap);
+                        meshingParameters.CheckOverlappingBoundary = EditorGUILayout.Toggle("Check Overlapping Boundary", meshingParameters.CheckOverlappingBoundary);
+                    }
+                }
+            }
+            finally
+            {
+                EditorGUIUtility.labelWidth = previousLabelWidth;
+            }
         }
 
         private void SelectOutputFolder()
